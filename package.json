@@ -1,0 +1,14 @@
+{
+  "name": "stock",
+  "version": "0.0.0",
+  "description": "Stock",
+  "main": "app.js",
+  "author": {
+    "name": ""
+  },
+  "dependencies": {
+    "cheerio": "0.22.0",
+    "iconv-lite": "0.4.24",
+    "request": "2.88.0"
+  }
+}
