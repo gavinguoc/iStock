@@ -9,6 +9,7 @@ var queueTest = 0;
 var levelf = {};
 var levels = {};
 var level = {};
+var cbFunc = null;
 
 const STOCKNO = 5000;
 const STOCKYEAR = 5;
@@ -64,7 +65,11 @@ const CUROUT = [
     'roe',
     'vertical',
     'vprofitdesc',
-    'debt2asset'
+    'debt2asset',
+    '4changeratio',
+    '13changeratio',
+    '26changeratio',
+    '52changeratio'
 ];
 const INDEX = "index";
 
@@ -74,6 +79,7 @@ const CHANGERATIO = {
     "http://quote.stockstar.com/Radar/stockperformance_2.htm": 26/* 6个月强度 26周 */,
     "http://quote.stockstar.com/Radar/stockperformance_3.htm": 52/* 1年强度 52周*/
 };
+const CRURL = "http://quote.stockstar.com";
 const CRARR = [
     'code',
     'name',
@@ -102,6 +108,21 @@ function parseUrl(url, callback) {
     });
 
 }
+
+function parseUrlx(url, callback) {
+    var data="";
+
+    http.get(url, function(error, res, body) {
+        if (!error && res.statusCode == 200) {
+            data = iconv.decode(body, 'gb2312').toString();
+            callback(data);
+        }else{
+            callback(null);
+        }
+    });
+
+}
+
 
 function getStockData(url, urlArr, year, count, cb) {
     
@@ -198,6 +219,9 @@ function getStockData(url, urlArr, year, count, cb) {
 
                 arrf = Object.keys(stock).sort();
                 for (var i = 0; i < arrf.length; i++) {
+
+                    if(arrf[i] == "") { continue; }
+
                     var outs = "";
                     var y = new Date().getFullYear();
                     arrs = CUROUT.sort();
@@ -264,20 +288,59 @@ function getStockData(url, urlArr, year, count, cb) {
     });
 }
 
-function getChangeRatio(url, duration) {
+function getChangeRatio(url, duration, cb) {
+
+    console.log("url:" + url);
+    queueTest++;
+    
     parseUrl(url, function (data) {
 
+        queueTest--;
+
+        console.log("queueTest:" + queueTest);
+        
         if (data) {
             //console.log(data);
+            var urlBase;
             var $ = cheerio.load(data);
-
-            $("#dataTable tr").each(function (i, e) {
-                var iStock = {};
+            var objTr = $("#table1 tbody tr");
+            for(var i = 0; i < objTr.length; i++){
+                var e = objTr[i];
+                var objTd = $(e).find("td");
                 var iStockCode = "";
-                $(e).find("td").each(function (j, y) {
 
-                });
-            });
+                for(var j = 0; j < objTd.length; j++){
+                    var y = objTd[j];
+                    var h = CRARR[j].replace("REP",duration.toString());
+
+                    if (j > 0 && iStockCode != "" && isNaN(iStockCode)) { continue; }
+
+                    switch (j) {
+                        case 0:
+                            iStockCode = $(y).text();
+                            if (iStockCode == "" || isNaN(iStockCode)) { continue; }
+                            if (!stock.hasOwnProperty(iStockCode)) stock[iStockCode] = {};
+                            break;
+
+                        default:
+                            stock[iStockCode][h] = $(y).text();
+                            break;
+                    }
+                }
+            }
+
+            //var objHref = $("#divPageControl").find("a");
+            
+            //var urlCount = $(objHref[objHref.length-2]).text();
+            if(CHANGERATIO[url]){
+                for(var k = 2; k <= 120; k++){
+                    getChangeRatio(url.replace(/(\d+)\.htm/,"$1"+"_2_1_"+k+".html"),duration, cb);
+                }
+            }
+        }
+
+        if(queueTest == 1) {
+            if(cb) cb();
         }
     });
 }
@@ -297,36 +360,37 @@ parseUrl(PE, function (data) {
         }
         levelf = iStock[0];
 
-        var cr = object.keys(CHANGERATIO);
+        queueTest = 1;
+        var cr = Object.keys(CHANGERATIO);
         for(var i = 0; i< cr.length; i++){
-            getChangeRatio(cr[i],CHANGERATIO[cr[i]]);
-        }
-
-        getStockData(STOCKVERTICAL, SVARR, null,null, function(){
-            getStockData(STOCKDEBT, SBARR, null,null, function(){
-                queueTest = 1;
-                for (var i = 1; i <= STOCKYEAR; i++) {
-                    var month = new Date().getMonth;
-                    var year = new Date().getFullYear() - i + 1;
-                    var qt = utilStock.getQuarter(new Date());;
-
-                    if (i == 1) {
-                        if (qt == 1) {
-                            qt = 4
+            getChangeRatio(cr[i],CHANGERATIO[cr[i]], function(){
+                getStockData(STOCKVERTICAL, SVARR, null,null, function(){
+                    getStockData(STOCKDEBT, SBARR, null,null, function(){
+                        queueTest = 1;
+                        for (var i = 1; i <= STOCKYEAR; i++) {
+                            var month = new Date().getMonth;
+                            var year = new Date().getFullYear() - i + 1;
+                            var qt = utilStock.getQuarter(new Date());;
+        
+                            if (i == 1) {
+                                if (qt == 1) {
+                                    qt = 4
+                                }
+                                else {
+                                    qt = qt - 1;
+                                }
+                            }
+                            else {
+                                qt = 4;
+                            }
+        
+                            var urlQuery = CURTIME.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
+                            getStockData(urlQuery, CURARR, year,i, null);
                         }
-                        else {
-                            qt = qt - 1;
-                        }
-                    }
-                    else {
-                        qt = 4;
-                    }
-
-                    var urlQuery = CURTIME.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
-                    getStockData(urlQuery, CURARR, year,i, null);
-                }
+                    });
+                });
             });
-        });
+        }
     }
 
 });
