@@ -367,141 +367,77 @@ function getIndexData(url, urlArr, id, cb) {
         }
 
         if (queueTest == 1 && cb) {
-            var date = new Date().format("yyyy-MM-dd");
+
             var hValues = Object.values(CHANGERATIO);
-            var curDay = utilStock.lastWorkingDay(date, 0);
-
-            for (var i = 0; i < hValues.length; i++) {
-                //loop the different duration of changeratio
+            hValues.unshift(0);
+            var curDay = utilStock.lastWorkingDay(new Date(), 0);
+            var cntDay;
+            
+            for (var i = 0; i < INDEXID.length; i++) {
+                var indexKey = INDEXID[i];
+                var curIndex = sindex[indexKey];
+            
+                cntDay = 0;
+                while (!curIndex[curDay]) {
+                    curDay = utilStock.lastWorkingDay(curDay, 1);
+                    cntDay++;
+            
+                    if (cntDay > Object.keys(curIndex).length + 10) {
+                        curDay = "";
+                        break;
+                    }
+                }
+            
+                if (curDay == "") break;
+            
+                for (var i = 0; i < hValues.length; i++) {
+                    //loop the different duration of changeratio
+                    var key = hValues[i] + CRNAME;
+                    var curKey = hValues[0] + CRNAME;
+                    var lastDay = curDay;
+            
+                    cntDay = 0;
+                    lastDay = utilStock.lastWorkingDay(lastDay, hValues[i]);
+            
+                    while (!curIndex[lastDay]) {
+                        lastDay = utilStock.lastWorkingDay(lastDay, 1);
+                        cntDay++;
+            
+                        if (cntDay > Object.keys(curIndex).length + 10) {
+                            lastDay = "";
+                            break;
+                        }
+                    }
+                    //TODO: Check whether the in-weekdays will have the same algorithm
+                    if (i > 0) {
+                        cntDay = 0;
+                        lastDay = utilStock.lastWorkingDay(lastDay, 1);
+            
+                        while (!curIndex[lastDay]) {
+                            lastDay = utilStock.lastWorkingDay(lastDay, 1);
+                            cntDay++;
+            
+                            if (cntDay > Object.keys(curIndex).length + 10) {
+                                lastDay = "";
+                                break;
+                            }
+                        }
+                    }
+            
+                    if (lastDay != "") {
+                        curIndex[key] = {};
+                        curIndex[key]['target'] = curIndex[lastDay];
+                        curIndex[key]['ratio'] = 100 * curIndex[curKey]['target']['close'] / curIndex[key]['target']['close'];
+                    }
+            
+                }
+            
             }
-
+        
             cb();
+            
         }
     });
-}
-
-sindex = {
-    '000001': {
-        '2018-09-14': {
-            'date': '2018-09-14',
-            'close': 2000,
-            'open': 1999
-        },
-        '2018-09-11': {
-            'date': '2018-09-13',
-            'close': 2000,
-            'open': 1999
-        },
-        '2018-08-20': {
-            'date': '2018-09-13',
-            'close': 2000,
-            'open': 1999
-        },
-        '2018-08-17': {
-            'date': '2018-09-13',
-            'close': 1500,
-            'open': 1999
-        },
-        '2018-08-16': {
-            'date': '2018-09-13',
-            'close': 1600,
-            'open': 1999
-        },
-        '2018-06-15': {
-            'date': '2018-09-13',
-            'close': 5000,
-            'open': 1999
-        },
-        '2018-06-14': {
-            'date': '2018-09-13',
-            'close': 6000,
-            'open': 1999
-        },
-
-
-    },
-    '300339': {
-        '2018-09-14': {
-            'date': '2018-09-14',
-            'close': 6000,
-            'open': 5999
-        },
-        '2018-09-13': {
-            'date': '2018-09-13',
-            'close': 6000,
-            'open': 5999
-        },
-
-    }
-
-};
-
-
-//var date = new Date().toISOString().substring(0,10);
-var hValues = Object.values(CHANGERATIO);
-hValues.unshift(0);
-var curDay = utilStock.lastWorkingDay(new Date(), 0);
-var cntDay;
-
-for (var i = 0; i < INDEXID.length; i++) {
-    var indexKey = INDEXID[i];
-    var curIndex = sindex[indexKey];
-
-    cntDay = 0;
-    while (!curIndex[curDay]) {
-        curDay = utilStock.lastWorkingDay(curDay, 1);
-        cntDay++;
-
-        if (cntDay > Object.keys(curIndex).length + 10) {
-            curDay = "";
-            break;
-        }
-    }
-
-    if (curDay == "") break;
-
-    for (var i = 0; i < hValues.length; i++) {
-        //loop the different duration of changeratio
-        var key = hValues[i] + CRNAME;
-        var curKey = hValues[0] + CRNAME;
-        var lastDay = curDay;
-
-        cntDay = 0;
-        lastDay = utilStock.lastWorkingDay(lastDay, hValues[i]);
-
-        while (!curIndex[lastDay]) {
-            lastDay = utilStock.lastWorkingDay(lastDay, 1);
-            cntDay++;
-
-            if (cntDay > Object.keys(curIndex).length + 10) {
-                lastDay = "";
-                break;
-            }
-        }
-
-        if (i > 0) {
-            cntDay = 0;
-            lastDay = utilStock.lastWorkingDay(lastDay, 1);
-
-            while (!curIndex[lastDay]) {
-                lastDay = utilStock.lastWorkingDay(lastDay, 1);
-                cntDay++;
-
-                if (cntDay > Object.keys(curIndex).length + 10) {
-                    lastDay = "";
-                    break;
-                }
-            }
-        }
-
-        if (lastDay != "") {
-            curIndex[key] = {};
-            curIndex[key]['target'] = curIndex[lastDay];
-            curIndex[key]['ratio'] = 100 * curIndex[curKey]['target']['close'] / curIndex[key]['target']['close'];
-        }
-
-    }
-
 }
 
 function getChangeRatio(url, duration, cb) {
