@@ -68,7 +68,7 @@ const CUROUT = [
     'vertical',
     'vprofitdesc',
     'debt2asset',
-    '20changeratio',
+    '28changeratio',
     '91changeratio',
     '182changeratio',
     '364changeratio'
@@ -258,7 +258,7 @@ function getStockData(url, urlArr, year, count, cb) {
                                 outs = outs + "," + stock[arrf[i]][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
                             }
                         } else {
-                            if (stock[arrf[i]][INDEX].hasOwnProperty(y)) {
+                            if (stock[arrf[i]].hasOwnProperty(INDEX) && stock[arrf[i]][INDEX].hasOwnProperty(y)) {
                                 if (outs == "") {
                                     outs = stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
                                 }
@@ -273,16 +273,45 @@ function getStockData(url, urlArr, year, count, cb) {
                     arrs = Object.keys(stock[arrf[i]][INDEX]).sort();
                     for (var j = 0; j < arrs.length; j++) {
                         var yf = arrs[j];
+                        var crValue = 0;
                         outs = "-x-";
                         if (yf != y) {
                             arrt = CUROUT.sort();
                             for (var k = 0; k < arrt.length; k++) {
                                 //if (CUROUT.indexOf(arrt[k]) == -1 ) { continue; }
                                 if (Object.keys(levelf).indexOf(arrt[k]) != -1) {
-                                    if (outs == "-x-") {
-                                        outs = "";
+                                    var tValue = 0;
+                                    if (j < 2 && arrt[k].indexOf(CRNAME) != -1) {
+                                        if (stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
+                                            crValue = sindex[INDEXID[1]][arrt[k]]['ratio'];
+                                        } else {
+                                            crValue = sindex[INDEXID[0]][arrt[k]]['ratio'];
+                                        }
+                                        tValue = crValue.toFixed(2);
+                                        tValue = tValue + "%";
+                                        
+                                        if (j == 0) {
+                                            if (outs == "-x-") {
+                                                outs = tValue;
+                                            } else {
+                                                outs = outs + "," + tValue;
+                                            }
+                                        } else if (j == 1) {
+                                            tValue = 100*((parseFloat(stock[arrf[i]][arrt[k]]) + 100) - crValue) / crValue;
+                                            tValue = tValue.toFixed(2);
+                                            tValue = tValue + "%";
+                                            if (outs == "-x-") {
+                                                outs = tValue;
+                                            } else {
+                                                outs = outs + "," + tValue;
+                                            }
+                                        }                                      
                                     } else {
-                                        outs = outs + "," + "";
+                                        if (outs == "-x-") {
+                                            outs = "";
+                                        } else {
+                                            outs = outs + "," + "";
+                                        }
                                     }
                                 } else {
                                     if (outs == "-x-") {
@@ -372,37 +401,37 @@ function getIndexData(url, urlArr, id, cb) {
             hValues.unshift(0);
             var curDay = utilStock.lastWorkingDay(new Date(), 0);
             var cntDay;
-            
+
             for (var i = 0; i < INDEXID.length; i++) {
                 var indexKey = INDEXID[i];
                 var curIndex = sindex[indexKey];
-            
+
                 cntDay = 0;
                 while (!curIndex[curDay]) {
                     curDay = utilStock.lastWorkingDay(curDay, 1);
                     cntDay++;
-            
+
                     if (cntDay > Object.keys(curIndex).length + 10) {
                         curDay = "";
                         break;
                     }
                 }
-            
+
                 if (curDay == "") break;
-            
-                for (var i = 0; i < hValues.length; i++) {
+
+                for (var j = 0; j < hValues.length; j++) {
                     //loop the different duration of changeratio
-                    var key = hValues[i] + CRNAME;
+                    var key = hValues[j] + CRNAME;
                     var curKey = hValues[0] + CRNAME;
                     var lastDay = curDay;
-            
+
                     cntDay = 0;
-                    lastDay = utilStock.lastWorkingDay(lastDay, hValues[i]);
-            
+                    lastDay = utilStock.lastWorkingDay(lastDay, hValues[j]);
+
                     while (!curIndex[lastDay]) {
                         lastDay = utilStock.lastWorkingDay(lastDay, 1);
                         cntDay++;
-            
+
                         if (cntDay > Object.keys(curIndex).length + 10) {
                             lastDay = "";
                             break;
@@ -412,30 +441,30 @@ function getIndexData(url, urlArr, id, cb) {
                     if (i > 0) {
                         cntDay = 0;
                         lastDay = utilStock.lastWorkingDay(lastDay, 1);
-            
+
                         while (!curIndex[lastDay]) {
                             lastDay = utilStock.lastWorkingDay(lastDay, 1);
                             cntDay++;
-            
+
                             if (cntDay > Object.keys(curIndex).length + 10) {
                                 lastDay = "";
                                 break;
                             }
                         }
                     }
-            
+
                     if (lastDay != "") {
                         curIndex[key] = {};
                         curIndex[key]['target'] = curIndex[lastDay];
                         curIndex[key]['ratio'] = 100 * curIndex[curKey]['target']['close'] / curIndex[key]['target']['close'];
                     }
-            
+
                 }
-            
+
             }
-        
+
             cb();
-            
+
         }
     });
 }
@@ -465,12 +494,12 @@ function getChangeRatio(url, duration, cb) {
                     var y = objTd[j];
                     var h = CRARR[j].replace("REP", duration.toString());
 
-                    if (j > 0 && iStockCode != "" && isNaN(iStockCode)) { continue; }
+                    if ((iStockCode.substring(0,1) == '2') || (iStockCode.substring(0,1) == '9') || (j > 0 && iStockCode != "" && isNaN(iStockCode))) { continue; }
 
                     switch (j) {
                         case 0:
                             iStockCode = $(y).text();
-                            if (iStockCode == "" || isNaN(iStockCode)) { continue; }
+                            if (iStockCode == "" || isNaN(iStockCode) || iStockCode.substring(0,1) == '2' || iStockCode.substring(0,1) == '9') { continue; }
                             if (!stock.hasOwnProperty(iStockCode)) stock[iStockCode] = {};
                             break;
 
