@@ -243,7 +243,7 @@ function getStockData(url, urlArr, year, count, cb) {
                     var outs = "";
                     var y = new Date().getFullYear();
                     arrs = CUROUT.sort();
-                    console.log("Processing: " + arrf[i] + "\n");
+                    console.log("Processing: " + arrf[i]);
 
                     for (var j = 0; j < arrs.length; j++) {
                         if (CUROUT.indexOf(arrs[j]) == -1) { continue; }
