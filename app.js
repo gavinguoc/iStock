@@ -290,8 +290,8 @@ function getStockData(url, urlArr, year, count, cb) {
                                             crValue = sindex[INDEXID[0]][arrt[k]]['ratio'];
                                             tValue2 = " " + sindex[INDEXID[0]][arrt[k]]['date'];
                                         }
-                                        tValue = crValue.toFixed(2) + tValue2;
-                                        tValue = tValue + "%";
+                                        tValue = crValue.toFixed(2) + "%" + tValue2;
+                                        //tValue = tValue + "%";
                                         
                                         if (j == 0) {
                                             if (outs == "-x-") {
