@@ -290,9 +290,9 @@ function getStockData(url, urlArr, year, count, cb) {
                                             crValue = sindex[INDEXID[0]][arrt[k]]['ratio'];
                                             tValue2 = " " + sindex[INDEXID[0]][arrt[k]]['date'];
                                         }
-                                        tValue = crValue.toFixed(2) + "%" + tValue2;
-                                        //tValue = tValue + "%";
-                                        
+                                        tValue = crValue.toFixed(2) + "%";
+                                        if (k == 0) { tValue = tValue + tValue2; }
+
                                         if (j == 0) {
                                             if (outs == "-x-") {
                                                 outs = tValue;
@@ -300,7 +300,7 @@ function getStockData(url, urlArr, year, count, cb) {
                                                 outs = outs + "," + tValue;
                                             }
                                         } else if (j == 1) {
-                                            tValue = 100*((parseFloat(stock[arrf[i]][arrt[k]]) + 100) - crValue) / crValue;
+                                            tValue = 100 * ((parseFloat(stock[arrf[i]][arrt[k]]) + 100) - crValue) / crValue;
                                             tValue = tValue.toFixed(2);
                                             tValue = tValue + "%";
                                             if (outs == "-x-") {
@@ -308,7 +308,7 @@ function getStockData(url, urlArr, year, count, cb) {
                                             } else {
                                                 outs = outs + "," + tValue;
                                             }
-                                        }                                      
+                                        }
                                     } else {
                                         if (outs == "-x-") {
                                             outs = "";
@@ -498,12 +498,12 @@ function getChangeRatio(url, duration, cb) {
                     var y = objTd[j];
                     var h = CRARR[j].replace("REP", duration.toString());
 
-                    if ((iStockCode.substring(0,1) == '2') || (iStockCode.substring(0,1) == '9') || (j > 0 && iStockCode != "" && isNaN(iStockCode))) { continue; }
+                    if ((iStockCode.substring(0, 1) == '2') || (iStockCode.substring(0, 1) == '9') || (j > 0 && iStockCode != "" && isNaN(iStockCode))) { continue; }
 
                     switch (j) {
                         case 0:
                             iStockCode = $(y).text();
-                            if (iStockCode == "" || isNaN(iStockCode) || iStockCode.substring(0,1) == '2' || iStockCode.substring(0,1) == '9') { continue; }
+                            if (iStockCode == "" || isNaN(iStockCode) || iStockCode.substring(0, 1) == '2' || iStockCode.substring(0, 1) == '9') { continue; }
                             if (!stock.hasOwnProperty(iStockCode)) stock[iStockCode] = {};
                             break;
 
