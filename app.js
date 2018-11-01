@@ -402,7 +402,7 @@ function getIndexData(url, urlArr, id, cb) {
 
             var hValues = Object.values(CHANGERATIO);
             hValues.unshift(0);
-            var curDay = utilStock.lastWorkingDay(new Date("2018-10-28"), 0);
+            var curDay = utilStock.lastWorkingDay(new Date(), 0);
             var cntDay;
 
             for (var i = 0; i < INDEXID.length; i++) {
