@@ -77,9 +77,9 @@ const INDEX = "index";
 
 const CHANGERATIO = {
     "http://quote.stockstar.com/Radar/stockperformance_5.htm": 4 * 7 /* 20日强度 20日 */,
-    "http://quote.stockstar.com/Radar/stockperformance_1.htm": 13 * 7/* 60日强度 13周 */,
-    "http://quote.stockstar.com/Radar/stockperformance_2.htm": 26 * 7/* 6个月强度 26周 */,
-    "http://quote.stockstar.com/Radar/stockperformance_3.htm": 52 * 7/* 1年强度 52周*/
+    "http://quote.stockstar.com/Radar/stockperformance_1.htm": 13 * 7 /* 60日强度 13周 */,
+    "http://quote.stockstar.com/Radar/stockperformance_2.htm": 26 * 7 /* 6个月强度 26周 */,
+    "http://quote.stockstar.com/Radar/stockperformance_3.htm": 52 * 7 /* 1年强度 52周 都需要往前推一天*/
 };
 const CRURL = "http://quote.stockstar.com";
 const CRARR = [
@@ -281,13 +281,16 @@ function getStockData(url, urlArr, year, count, cb) {
                                 //if (CUROUT.indexOf(arrt[k]) == -1 ) { continue; }
                                 if (Object.keys(levelf).indexOf(arrt[k]) != -1) {
                                     var tValue = 0;
+                                    var tValue2 = "";
                                     if (j < 2 && arrt[k].indexOf(CRNAME) != -1) {
                                         if (stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
                                             crValue = sindex[INDEXID[1]][arrt[k]]['ratio'];
+                                            tValue2 = " " + sindex[INDEXID[1]][arrt[k]]['date'];
                                         } else {
                                             crValue = sindex[INDEXID[0]][arrt[k]]['ratio'];
+                                            tValue2 = " " + sindex[INDEXID[0]][arrt[k]]['date'];
                                         }
-                                        tValue = crValue.toFixed(2);
+                                        tValue = crValue.toFixed(2) + tValue2;
                                         tValue = tValue + "%";
                                         
                                         if (j == 0) {
@@ -399,7 +402,7 @@ function getIndexData(url, urlArr, id, cb) {
 
             var hValues = Object.values(CHANGERATIO);
             hValues.unshift(0);
-            var curDay = utilStock.lastWorkingDay(new Date(), 0);
+            var curDay = utilStock.lastWorkingDay(new Date("2018-10-28"), 0);
             var cntDay;
 
             for (var i = 0; i < INDEXID.length; i++) {
@@ -456,6 +459,7 @@ function getIndexData(url, urlArr, id, cb) {
                     if (lastDay != "") {
                         curIndex[key] = {};
                         curIndex[key]['target'] = curIndex[lastDay];
+                        curIndex[key]['date'] = lastDay;
                         curIndex[key]['ratio'] = 100 * curIndex[curKey]['target']['close'] / curIndex[key]['target']['close'];
                     }
 
