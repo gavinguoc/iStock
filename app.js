@@ -12,6 +12,7 @@ var levelf = {};
 var levels = {};
 var level = {};
 var cbFunc = null;
+var firstyear = 0;
 
 const STOCKNO = 5000;
 const STOCKYEAR = 5;
@@ -19,7 +20,8 @@ const PE = "http://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/t/M
 //const CUR = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/mainindex/index.phtml?num=" + STOCKNO;
 const CURTIME = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/mainindex/index.phtml?s_i=&s_a=&s_c=&reportdate=2018&quarter=2&num=" + STOCKNO;
 const STOCKVERTICAL = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/incomedetail/index.phtml?num=" + STOCKNO;
-const STOCKDEBT = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?num=" + STOCKNO;
+//const STOCKDEBT = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?num=" + STOCKNO;
+const STOCKDEBT_ALL = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?s_i=&s_a=&s_c=&reportdate=2018&quarter=2&num=" + STOCKNO;
 const SVARR = ['code',
     'name',
     'vertical'/*所属行业*/,
@@ -144,7 +146,20 @@ function parseUrlx(url, callback) {
 
 function getStockData(url, urlArr, year, count, cb) {
 
+    if (year != null) {
+        url = url;
+    }
+
+    queueTest++;
+    console.log("url:" + url);
+    console.log("year:" + year + " count:" + count);
+    console.log("getStockData queueTest increase:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
+
     parseUrl(url, function (data) {
+
+        queueTest--;
+        console.log("getStockData queueTest decrease:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
+        console.log("year:" + year + " count:" + count);
 
         if (data) {
             //console.log(data);
@@ -156,6 +171,8 @@ function getStockData(url, urlArr, year, count, cb) {
                 var iStock = {};
                 var iStockCode = "";
                 var objTd = $(e).find("td");
+
+                if (year && count == 1) { firstyear = year; }
                 for (var j = 0; j < objTd.length; j++) {
                     var y = objTd[j];
 
@@ -164,6 +181,9 @@ function getStockData(url, urlArr, year, count, cb) {
                     switch (j) {
                         case 0:
                             iStockCode = $(y).text();
+                            if (iStockCode == "000001" && year) {
+                                iStockCode = iStockCode;
+                            }
                             if (isNaN(iStockCode)) { continue; }
                             if (year) {
                                 if (stock.hasOwnProperty(iStockCode) && stock[iStockCode].hasOwnProperty(INDEX) && stock[iStockCode][INDEX].hasOwnProperty(year)) {
@@ -176,6 +196,10 @@ function getStockData(url, urlArr, year, count, cb) {
                                     iStock[urlArr[j]] = iStockCode;
                                 }
                             }
+                            else {
+                                if (!stock.hasOwnProperty(iStockCode)) stock[iStockCode] = {};
+                                if (!stock[iStockCode].hasOwnProperty(INDEX)) stock[iStockCode][INDEX] = {};
+                            }
                             stock[iStockCode][urlArr[j]] = iStockCode;
                             break;
                         case 1:
@@ -186,27 +210,45 @@ function getStockData(url, urlArr, year, count, cb) {
                         default:
                             if (year) {
                                 iStock[urlArr[j]] = $(y).text();
+                                if(urlArr[j].indexOf('date') != -1){
+                                    iStock[urlArr[j]] = year;
+                                }
                             }
-                            else {
-                                if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "") {
+                            if (year == null || ((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1)) { // 
+                                if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "" && !(((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1))) {// 
                                     stock[iStockCode][urlArr[j]] = stock[iStockCode][urlArr[j]] + "-" + $(y).text();
                                 }
                                 else {
-                                    stock[iStockCode][urlArr[j]] = $(y).text();
+                                    if(!stock[iStockCode][urlArr[j]] || (stock[iStockCode][urlArr[j]] && (year == firstyear && count != 1))) {
+                                        stock[iStockCode][urlArr[j]] = $(y).text();
+                                        if(urlArr[j].indexOf('date') != -1 && year){
+                                            // var y = new Date().getFullYear();
+                                            // if (utilStock.getQuarter(new Date()) == 1) {
+                                            //     y = y - 1;
+                                            // }
+                                            stock[iStockCode][urlArr[j]] = year;
+                                            iStock[urlArr[j]] = year;
+                                            if(url.indexOf("quarter=3") != -1){
+                                                stock[iStockCode][urlArr[j]] = year + "Q3";
+                                                iStock[urlArr[j]] = year + "Q3";
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             break;
                     }
                     //console.log($(y).text());
                     if (year && j == urlArr.length && !isNaN(iStockCode)) {
-                        stock[iStockCode][INDEX][year] = iStock;
+                        if(!Object.keys(stock[iStockCode][INDEX][year]).length && ((year == firstyear && count != 1) && Object.keys(stock[iStockCode][INDEX][year]).length)) {
+                            stock[iStockCode][INDEX][year] = iStock;
+                        }
                     }
                 }
             }
 
-            queueTest++;
-
-            if (count && queueTest >= STOCKYEAR + 1) {
+            if (cb == null && queueTest == 1) {
+                console.log("getStockData queueTest value reach:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
                 var fs = require("fs");
                 var arrf = [];
                 var arrs = [];
@@ -218,8 +260,8 @@ function getStockData(url, urlArr, year, count, cb) {
                     arrs = Object.keys(stock[arrf[i]]).sort();
                     for (var j = 0; j < arrs.length; j++) {
                         levelf[arrs[j]] = 1;
-                        level[arrs[j]] = 1;
-                        if (typeof stock[arrf[i]][arrs[j]] == 'object') {
+                        level[arrs[j]] = 1;// && Object.keys(stock[arrf[i]][arrs[j]]).count > 0
+                        if (typeof stock[arrf[i]][arrs[j]] == 'object' && Object.keys(stock[arrf[i]][arrs[j]]).length && stock[arrf[i]][arrs[j]] != "") {
                             var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
                             arrt = Object.keys(stock[arrf[i]][arrs[j]][t[0]]).sort();
                             for (var k = 0; k < arrt.length; k++) {
@@ -230,7 +272,7 @@ function getStockData(url, urlArr, year, count, cb) {
                     }
                 }
 
-                console.log(levelf + "#####" + levels);
+                //console.log(levelf + "#####" + levels);
                 arrf = CUROUT.sort();
                 //arrf.splice(arrf.indexOf(INDEX), 1);
                 fs.writeFileSync("stock.txt", arrf.join(",") + "\n");
@@ -242,6 +284,11 @@ function getStockData(url, urlArr, year, count, cb) {
 
                     var outs = "";
                     var y = new Date().getFullYear();
+                    var qt = utilStock.getQuarter(new Date());
+                    if (utilStock.getQuarter(new Date()) == 1) {
+                        y = y - 1;
+                    }
+
                     arrs = CUROUT.sort();
                     console.log("Processing: " + arrf[i]);
 
@@ -251,20 +298,23 @@ function getStockData(url, urlArr, year, count, cb) {
                             arrf[i] = arrf[i];
                         }
                         if (Object.keys(levelf).indexOf(arrs[j]) != -1) {
+                        //     if (stock[arrf[i]].hasOwnProperty(INDEX) && stock[arrf[i]][INDEX].hasOwnProperty(y)) {
+                        //         if (outs == "") {
+                        //             outs = stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
+                        //         }
+                        //         else {
+                        //             outs = outs + "," + stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
+                        //         }
+                        //     }
+                        //     else {
+                        //         outs = outs + ","
+                        //     }
+                        // } else {
                             if (outs == "") {
-                                outs = stock[arrf[i]][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
+                                outs = stock[arrf[i]][arrs[j]];// + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
                             }
                             else {
-                                outs = outs + "," + stock[arrf[i]][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
-                            }
-                        } else {
-                            if (stock[arrf[i]].hasOwnProperty(INDEX) && stock[arrf[i]][INDEX].hasOwnProperty(y)) {
-                                if (outs == "") {
-                                    outs = stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
-                                }
-                                else {
-                                    outs = outs + "," + stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
-                                }
+                                outs = outs + "," + stock[arrf[i]][arrs[j]];// + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
                             }
                         }
                     }
@@ -275,11 +325,11 @@ function getStockData(url, urlArr, year, count, cb) {
                         var yf = arrs[j];
                         var crValue = 0;
                         outs = "-x-";
-                        if (yf != y) {
+                        if (1) { //yf != y) { // Go and Print OUT this year anyway
                             arrt = CUROUT.sort();
                             for (var k = 0; k < arrt.length; k++) {
                                 //if (CUROUT.indexOf(arrt[k]) == -1 ) { continue; }
-                                if (Object.keys(levelf).indexOf(arrt[k]) != -1) {
+                                if (Object.keys(levelf).indexOf(arrt[k]) != -1 && Object.keys(levels).indexOf(arrt[k]) == -1) {
                                     var tValue = 0;
                                     var tValue2 = "";
                                     if (j < 2 && arrt[k].indexOf(CRNAME) != -1) {
@@ -291,8 +341,8 @@ function getStockData(url, urlArr, year, count, cb) {
                                             tValue2 = " " + sindex[INDEXID[0]][arrt[k]]['date'];
                                         }
                                         tValue = crValue.toFixed(2) + "%";
-                                        if (k == 0) { tValue = tValue + tValue2; }
-
+                                        // if (k == 0) { tValue = tValue + tValue2; }
+                                        tValue = tValue + tValue2;
                                         if (j == 0) {
                                             if (outs == "-x-") {
                                                 outs = tValue;
@@ -318,9 +368,9 @@ function getStockData(url, urlArr, year, count, cb) {
                                     }
                                 } else {
                                     if (outs == "-x-") {
-                                        outs = stock[arrf[i]][INDEX][yf][arrt[k]] + ((arrt[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                        outs = stock[arrf[i]][INDEX][yf][arrt[k]];// + ((arrt[k].indexOf('date') > -1) ? ("-" + yf) : "");
                                     } else {
-                                        outs = outs + "," + stock[arrf[i]][INDEX][yf][arrt[k]] + ((arrt[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                        outs = outs + "," + stock[arrf[i]][INDEX][yf][arrt[k]];// + ((arrt[k].indexOf('date') > -1) ? ("-" + yf) : "");
                                     }
                                 }
                             }
@@ -331,8 +381,7 @@ function getStockData(url, urlArr, year, count, cb) {
                 }
 
             }
-
-            if (cb) cb();
+            if (cb && queueTest == 1) cb();
         }
 
     });
@@ -343,6 +392,7 @@ function getIndex(cb) {
     queueTest = 1;
     for (var i = 0; i < INDEXID.length; i++) {
         var urlQuery = INDEXURL.replace("##STOCK##", INDEXID[i]);
+        console.log("Get id#" + INDEXID[i] + " index data");
         sindex[INDEXID[i]] = {};
         relatePower[INDEXID[i]] = {};
         var fixMonth = utilStock.getQuarter(new Date()) * 3;
@@ -362,9 +412,14 @@ function getIndexData(url, urlArr, id, cb) {
 
     queueTest++;
 
+    console.log("url:" + url);
+    console.log("index:" + id);
+    console.log("getIndexData queueTest increase:" + queueTest);
     parseUrl(url, function (data) {
 
         queueTest--;
+
+        console.log("getIndexData queueTest decrease:" + queueTest);
 
         if (data) {
 
@@ -441,26 +496,27 @@ function getIndexData(url, urlArr, id, cb) {
                         }
                     }
                     //TODO: Check whether the in-weekdays will have the same algorithm
-                    if (i > 0) {
-                        cntDay = 0;
-                        lastDay = utilStock.lastWorkingDay(lastDay, 1);
+                    //if (i > 0) {
+                    // cntDay = 0;
+                    // lastDay = utilStock.lastWorkingDay(lastDay, 1);
 
-                        while (!curIndex[lastDay]) {
-                            lastDay = utilStock.lastWorkingDay(lastDay, 1);
-                            cntDay++;
+                    // while (!curIndex[lastDay]) {
+                    //     lastDay = utilStock.lastWorkingDay(lastDay, 1);
+                    //     cntDay++;
 
-                            if (cntDay > Object.keys(curIndex).length + 10) {
-                                lastDay = "";
-                                break;
-                            }
-                        }
-                    }
+                    //     if (cntDay > Object.keys(curIndex).length + 10) {
+                    //         lastDay = "";
+                    //         break;
+                    //     }
+                    // }
+                    //}
 
                     if (lastDay != "") {
                         curIndex[key] = {};
                         curIndex[key]['target'] = curIndex[lastDay];
                         curIndex[key]['date'] = lastDay;
                         curIndex[key]['ratio'] = 100 * curIndex[curKey]['target']['close'] / curIndex[key]['target']['close'];
+                        console.log("Identified id#" + INDEXID[i] + " index data back " + hValues[j] + " by " + lastDay + " value " + curIndex[key]['ratio'] + " Cal from close:" + curIndex[key]['target']['close'] + " now close:" + curIndex[curKey]['target']['close']);
                     }
 
                 }
@@ -475,14 +531,15 @@ function getIndexData(url, urlArr, id, cb) {
 
 function getChangeRatio(url, duration, cb) {
 
-    console.log("url:" + url);
     queueTest++;
+    console.log("getChangeRatio url:" + url + " duration:" + duration);
+    console.log("getChangeRatio queueTest increase:" + queueTest);
 
     parseUrl(url, function (data) {
 
         queueTest--;
 
-        console.log("queueTest:" + queueTest);
+        console.log("getChangeRatio queueTest decrease:" + queueTest);
 
         if (data) {
             //console.log(data);
@@ -514,11 +571,9 @@ function getChangeRatio(url, duration, cb) {
                 }
             }
 
-            //var objHref = $("#divPageControl").find("a");
-
-            //var urlCount = $(objHref[objHref.length-2]).text();
+            var urlCount = Math.ceil($("#ClientPageControl1_hdnTotalCount").val() / $("#ClientPageControl1_hdnPageSize").val());
             if (CHANGERATIO[url]) {
-                for (var k = 2; k <= 120; k++) {
+                for (var k = 2; k <= urlCount; k++) {
                     getChangeRatio(url.replace(/(\d+)\.htm/, "$1" + "_2_1_" + k + ".html"), duration, cb);
                 }
             }
@@ -548,34 +603,59 @@ parseUrl(PE, function (data) {
         console.log("Finish loading jsonstr!");
 
         getIndex(function () {
-            queueTest = 1;
             var cr = Object.keys(CHANGERATIO);
+            queueTest = 1;
+
             for (var i = 0; i < cr.length; i++) {
                 getChangeRatio(cr[i], CHANGERATIO[cr[i]], function () {
+                    queueTest = 1;
                     getStockData(STOCKVERTICAL, SVARR, null, null, function () {
-                        getStockData(STOCKDEBT, SBARR, null, null, function () {
-                            queueTest = 1;
-                            for (var i = 1; i <= STOCKYEAR; i++) {
-                                var month = new Date().getMonth;
-                                var year = new Date().getFullYear() - i + 1;
-                                var qt = utilStock.getQuarter(new Date());;
+                        queueTest = 1;
+                        for (var i = 1; i <= STOCKYEAR; i++) {
+                            var year = new Date().getFullYear() - i + 1;
+                            var qt = utilStock.getQuarter(new Date());
 
-                                if (i == 1) {
-                                    if (qt == 1) {
-                                        qt = 4
-                                    }
-                                    else {
-                                        qt = qt - 1;
-                                    }
+                            if (i == 1) {
+                                if (qt == 1) {
+                                    // if it's first quarter, then I need to put it to last year
+                                    qt = 3;
+                                    year = year - 1;
                                 }
                                 else {
-                                    qt = 4;
+                                    qt = qt - 1;
                                 }
-
-                                var urlQuery = CURTIME.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
-                                getStockData(urlQuery, CURARR, year, i, null);
                             }
-                        });
+                            else {
+                                qt = 4;
+                            }
+
+                            var urlQuery = STOCKDEBT_ALL.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
+
+                            getStockData(urlQuery, SBARR, year, i, function () {
+                                queueTest = 1;
+                                for (var i = 1; i <= STOCKYEAR; i++) {
+                                    var year = new Date().getFullYear() - i + 1;
+                                    var qt = utilStock.getQuarter(new Date());
+
+                                    if (i == 1) {
+                                        if (qt == 1) {
+                                            // if it's first quarter, then I need to put it to last year
+                                            qt = 3;
+                                            year = year - 1;
+                                        }
+                                        else {
+                                            qt = qt - 1;
+                                        }
+                                    }
+                                    else {
+                                        qt = 4;
+                                    }
+
+                                    var urlQuery = CURTIME.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
+                                    getStockData(urlQuery, CURARR, year, i, null);
+                                }
+                            });
+                        }
                     });
                 });
             }
