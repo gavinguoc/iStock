@@ -16,12 +16,15 @@ var firstyear = 0;
 
 const STOCKNO = 5000;
 const STOCKYEAR = 5;
+const PREDICTQ = 2;
 const PE = "http://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/t/Market_Center.getHQNodeDataNew?page=1&num=" + STOCKNO + "&sort=per_d&asc=0&node=hs_a";
 //const CUR = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/mainindex/index.phtml?num=" + STOCKNO;
 const CURTIME = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/mainindex/index.phtml?s_i=&s_a=&s_c=&reportdate=2018&quarter=2&num=" + STOCKNO;
 const STOCKVERTICAL = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/incomedetail/index.phtml?num=" + STOCKNO;
 //const STOCKDEBT = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?num=" + STOCKNO;
 const STOCKDEBT_ALL = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?s_i=&s_a=&s_c=&reportdate=2018&quarter=2&num=" + STOCKNO;
+const PREDICT = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/performance/index.phtml?s_i=&s_a=&s_c=&s_type=&reportdate=2018&quarter=2&num=" + STOCKNO;
+
 const SVARR = ['code',
     'name',
     'vertical'/*所属行业*/,
@@ -53,6 +56,18 @@ const CURARR = ['code',
     'netprofitdate'/*发布日期*/,
     'details'
 ];
+
+const PREDARR = ['code',
+    'name',
+    'type'/*类型（预升，预减）*/,
+    'pQUAdate'/*公告日期*/,
+    'pQUAtarget'/*报告期*/,
+    'pQUAdesc'/*业绩预告摘要*/,
+    'pQUAeps'/*上年同期每股收益(元)*/,
+    'pQUAincratio'/*业绩增幅*/,
+    'pQUAdetail'/*明细*/,
+];
+
 const CUROUT = [
     'code',
     'name',
@@ -71,17 +86,17 @@ const CUROUT = [
     'vprofitdesc',
     'debt2asset',
     '28changeratio',
-    '91changeratio',
-    '182changeratio',
-    '364changeratio'
+    '90changeratio',
+    '181changeratio',
+    '363changeratio',
 ];
 const INDEX = "index";
 
 const CHANGERATIO = {
     "http://quote.stockstar.com/Radar/stockperformance_5.htm": 4 * 7 /* 20日强度 20日 */,
-    "http://quote.stockstar.com/Radar/stockperformance_1.htm": 13 * 7 /* 60日强度 13周 */,
-    "http://quote.stockstar.com/Radar/stockperformance_2.htm": 26 * 7 /* 6个月强度 26周 */,
-    "http://quote.stockstar.com/Radar/stockperformance_3.htm": 52 * 7 /* 1年强度 52周 都需要往前推一天*/
+    "http://quote.stockstar.com/Radar/stockperformance_1.htm": 13 * 7 + 1 /* 60日强度 13周 */,
+    "http://quote.stockstar.com/Radar/stockperformance_2.htm": 26 * 7 + 1 /* 6个月强度 26周 */,
+    "http://quote.stockstar.com/Radar/stockperformance_3.htm": 52 * 7 + 1 /* 1年强度 52周 都需要往前推一天*/
 };
 const CRURL = "http://quote.stockstar.com";
 const CRARR = [
@@ -153,12 +168,24 @@ function getStockData(url, urlArr, year, count, cb) {
     queueTest++;
     console.log("url:" + url);
     console.log("year:" + year + " count:" + count);
-    console.log("getStockData queueTest increase:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
+    console.log("getStockData queueTest increase:" + queueTest + " urlArr:" 
+        + ((urlArr == SBARR) ? "SBARR" : 
+        ((urlArr == SVARR) ? "SVARR" : 
+        ((urlArr == CURARR) ? "CURARR" : 
+        ((urlArr == PREDARR)? "PREDARR":
+        "UNKNOWN")
+        ))));
 
     parseUrl(url, function (data) {
 
         queueTest--;
-        console.log("getStockData queueTest decrease:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
+        console.log("getStockData queueTest decrease:" + queueTest + " urlArr:" 
+        + ((urlArr == SBARR) ? "SBARR" : 
+        ((urlArr == SVARR) ? "SVARR" : 
+        ((urlArr == CURARR) ? "CURARR" : 
+        ((urlArr == PREDARR)? "PREDARR":
+        "UNKNOWN")
+        ))));
         console.log("year:" + year + " count:" + count);
 
         if (data) {
@@ -185,7 +212,8 @@ function getStockData(url, urlArr, year, count, cb) {
                                 iStockCode = iStockCode;
                             }
                             if (isNaN(iStockCode)) { continue; }
-                            if (year) {
+
+                            if (year && String(count).indexOf("Q") == -1 ) {
                                 if (stock.hasOwnProperty(iStockCode) && stock[iStockCode].hasOwnProperty(INDEX) && stock[iStockCode][INDEX].hasOwnProperty(year)) {
                                     iStock = stock[iStockCode][INDEX][year];
                                 }
@@ -208,38 +236,45 @@ function getStockData(url, urlArr, year, count, cb) {
                             break;
 
                         default:
-                            if (year) {
-                                iStock[urlArr[j]] = $(y).text();
-                                if(urlArr[j].indexOf('date') != -1){
-                                    iStock[urlArr[j]] = year;
-                                }
+                            if(year && String(count).indexOf("Q") != -1 ){
+                                stock[iStockCode][urlArr[j].replace("QUA", count)] = $(y).text();
                             }
-                            if (year == null || ((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1)) { // 
-                                if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "" && !(((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1))) {// 
-                                    stock[iStockCode][urlArr[j]] = stock[iStockCode][urlArr[j]] + "-" + $(y).text();
+                            else
+                            {
+                                if (year) {
+                                    iStock[urlArr[j]] = $(y).text();
+                                    if(urlArr[j].indexOf('date') != -1){
+                                        iStock[urlArr[j]] = year;
+                                    }
                                 }
-                                else {
-                                    if(!stock[iStockCode][urlArr[j]] || (stock[iStockCode][urlArr[j]] && (year == firstyear && count != 1))) {
-                                        stock[iStockCode][urlArr[j]] = $(y).text();
-                                        if(urlArr[j].indexOf('date') != -1 && year){
-                                            // var y = new Date().getFullYear();
-                                            // if (utilStock.getQuarter(new Date()) == 1) {
-                                            //     y = y - 1;
-                                            // }
-                                            stock[iStockCode][urlArr[j]] = year;
-                                            iStock[urlArr[j]] = year;
-                                            if(url.indexOf("quarter=3") != -1){
-                                                stock[iStockCode][urlArr[j]] = year + "Q3";
-                                                iStock[urlArr[j]] = year + "Q3";
+                                if (year == null || ((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1)) { // 
+                                    if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "" && !(((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1))) {// 
+                                        stock[iStockCode][urlArr[j]] = stock[iStockCode][urlArr[j]] + "-" + $(y).text();
+                                    }
+                                    else {
+                                        if(!stock[iStockCode][urlArr[j]] || (stock[iStockCode][urlArr[j]] && (year == firstyear && count != 1))) {
+                                            stock[iStockCode][urlArr[j]] = $(y).text();
+                                            if(urlArr[j].indexOf('date') != -1 && year){
+                                                // var y = new Date().getFullYear();
+                                                // if (utilStock.getQuarter(new Date()) == 1) {
+                                                //     y = y - 1;
+                                                // }
+                                                stock[iStockCode][urlArr[j]] = year;
+                                                iStock[urlArr[j]] = year;
+                                                if(url.indexOf("quarter=3") != -1){
+                                                    stock[iStockCode][urlArr[j]] = year + "Q3";
+                                                    iStock[urlArr[j]] = year + "Q3";
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+
                             break;
                     }
                     //console.log($(y).text());
-                    if (year && j == urlArr.length && !isNaN(iStockCode)) {
+                    if ((year && String(count).indexOf("Q") == -1) && j == urlArr.length && !isNaN(iStockCode)) {
                         if(!Object.keys(stock[iStockCode][INDEX][year]).length && ((year == firstyear && count != 1) && Object.keys(stock[iStockCode][INDEX][year]).length)) {
                             stock[iStockCode][INDEX][year] = iStock;
                         }
@@ -252,7 +287,7 @@ function getStockData(url, urlArr, year, count, cb) {
                 var fs = require("fs");
                 var arrf = [];
                 var arrs = [];
-                var arrt = [];
+                var arrk = [];
 
                 arrf = Object.keys(stock).sort();
                 for (var i = 0; i < arrf.length; i++) {
@@ -263,19 +298,27 @@ function getStockData(url, urlArr, year, count, cb) {
                         level[arrs[j]] = 1;// && Object.keys(stock[arrf[i]][arrs[j]]).count > 0
                         if (typeof stock[arrf[i]][arrs[j]] == 'object' && Object.keys(stock[arrf[i]][arrs[j]]).length && stock[arrf[i]][arrs[j]] != "") {
                             var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
-                            arrt = Object.keys(stock[arrf[i]][arrs[j]][t[0]]).sort();
-                            for (var k = 0; k < arrt.length; k++) {
-                                levels[arrt[k]] = 1;
-                                level[arrt[k]] = 1;
+                            arrk = Object.keys(stock[arrf[i]][arrs[j]][t[0]]).sort();
+                            for (var k = 0; k < arrk.length; k++) {
+                                levels[arrk[k]] = 1;
+                                level[arrk[k]] = 1;
                             }
                         }
                     }
                 }
 
                 //console.log(levelf + "#####" + levels);
-                arrf = CUROUT.sort();
+                arrk = CUROUT.sort();
                 //arrf.splice(arrf.indexOf(INDEX), 1);
-                fs.writeFileSync("stock.txt", arrf.join(",") + "\n");
+                var keysLevelf =  Object.keys(levelf).sort();
+
+                for(var j = 0; j< keysLevelf.length; j++){
+                    if(keysLevelf[j].indexOf("pQ") != -1 && keysLevelf[j].indexOf("eps") == -1&& keysLevelf[j].indexOf("detail") == -1){
+                        arrk[arrk.length] = keysLevelf[j];
+                    }
+                }
+
+                fs.writeFileSync("stock.txt", arrk.join(",") + "\n");
 
                 arrf = Object.keys(stock).sort();
                 for (var i = 0; i < arrf.length; i++) {
@@ -284,37 +327,27 @@ function getStockData(url, urlArr, year, count, cb) {
 
                     var outs = "";
                     var y = new Date().getFullYear();
-                    var qt = utilStock.getQuarter(new Date());
                     if (utilStock.getQuarter(new Date()) == 1) {
                         y = y - 1;
-                    }
+                    }                   
 
-                    arrs = CUROUT.sort();
+                    //arrs = CUROUT.sort();
                     console.log("Processing: " + arrf[i]);
-
-                    for (var j = 0; j < arrs.length; j++) {
-                        if (CUROUT.indexOf(arrs[j]) == -1) { continue; }
+                    
+                    var str = "";
+                    for (var j = 0; j < arrk.length; j++) {
+                        //if (CUROUT.indexOf(arrs[j]) == -1) { continue; }
+                        str = stock[arrf[i]][arrk[j]];
+                        if(str){str = String(str).replace(/(\r\n|\n|\r)/gm,"-");}
                         if (arrf[i] == "002680") {
                             arrf[i] = arrf[i];
                         }
-                        if (Object.keys(levelf).indexOf(arrs[j]) != -1) {
-                        //     if (stock[arrf[i]].hasOwnProperty(INDEX) && stock[arrf[i]][INDEX].hasOwnProperty(y)) {
-                        //         if (outs == "") {
-                        //             outs = stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
-                        //         }
-                        //         else {
-                        //             outs = outs + "," + stock[arrf[i]][INDEX][y][arrs[j]] + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
-                        //         }
-                        //     }
-                        //     else {
-                        //         outs = outs + ","
-                        //     }
-                        // } else {
+                        if (Object.keys(levelf).indexOf(arrk[j]) != -1) {
                             if (outs == "") {
-                                outs = stock[arrf[i]][arrs[j]];// + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
+                                outs = str?str:" ";// + ((arrk[j].indexOf('date') > -1) ? ("-" + y) : "");
                             }
                             else {
-                                outs = outs + "," + stock[arrf[i]][arrs[j]];// + ((arrs[j].indexOf('date') > -1) ? ("-" + y) : "");
+                                outs = outs + "," + (str?str:"");// + ((arrk[j].indexOf('date') > -1) ? ("-" + y) : "");
                             }
                         }
                     }
@@ -326,19 +359,19 @@ function getStockData(url, urlArr, year, count, cb) {
                         var crValue = 0;
                         outs = "-x-";
                         if (1) { //yf != y) { // Go and Print OUT this year anyway
-                            arrt = CUROUT.sort();
-                            for (var k = 0; k < arrt.length; k++) {
-                                //if (CUROUT.indexOf(arrt[k]) == -1 ) { continue; }
-                                if (Object.keys(levelf).indexOf(arrt[k]) != -1 && Object.keys(levels).indexOf(arrt[k]) == -1) {
+                            //arrk = CUROUT.sort();
+                            for (var k = 0; k < arrk.length; k++) {
+                                //if (CUROUT.indexOf(arrk[k]) == -1 ) { continue; }
+                                if (Object.keys(levelf).indexOf(arrk[k]) != -1 && Object.keys(levels).indexOf(arrk[k]) == -1) {
                                     var tValue = 0;
                                     var tValue2 = "";
-                                    if (j < 2 && arrt[k].indexOf(CRNAME) != -1) {
+                                    if (j < 2 && arrk[k].indexOf(CRNAME) != -1) {
                                         if (stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
-                                            crValue = sindex[INDEXID[1]][arrt[k]]['ratio'];
-                                            tValue2 = " " + sindex[INDEXID[1]][arrt[k]]['date'];
+                                            crValue = sindex[INDEXID[1]][arrk[k]]['ratio'];
+                                            tValue2 = " " + sindex[INDEXID[1]][arrk[k]]['date'];
                                         } else {
-                                            crValue = sindex[INDEXID[0]][arrt[k]]['ratio'];
-                                            tValue2 = " " + sindex[INDEXID[0]][arrt[k]]['date'];
+                                            crValue = sindex[INDEXID[0]][arrk[k]]['ratio'];
+                                            tValue2 = " " + sindex[INDEXID[0]][arrk[k]]['date'];
                                         }
                                         tValue = crValue.toFixed(2) + "%";
                                         // if (k == 0) { tValue = tValue + tValue2; }
@@ -350,7 +383,7 @@ function getStockData(url, urlArr, year, count, cb) {
                                                 outs = outs + "," + tValue;
                                             }
                                         } else if (j == 1) {
-                                            tValue = 100 * ((parseFloat(stock[arrf[i]][arrt[k]]) + 100) - crValue) / crValue;
+                                            tValue = 100 * ((parseFloat(stock[arrf[i]][arrk[k]]) + 100) - crValue) / crValue;
                                             tValue = tValue.toFixed(2);
                                             tValue = tValue + "%";
                                             if (outs == "-x-") {
@@ -368,9 +401,9 @@ function getStockData(url, urlArr, year, count, cb) {
                                     }
                                 } else {
                                     if (outs == "-x-") {
-                                        outs = stock[arrf[i]][INDEX][yf][arrt[k]];// + ((arrt[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                        outs = stock[arrf[i]][INDEX][yf][arrk[k]];// + ((arrk[k].indexOf('date') > -1) ? ("-" + yf) : "");
                                     } else {
-                                        outs = outs + "," + stock[arrf[i]][INDEX][yf][arrt[k]];// + ((arrt[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                        outs = outs + "," + stock[arrf[i]][INDEX][yf][arrk[k]];// + ((arrk[k].indexOf('date') > -1) ? ("-" + yf) : "");
                                     }
                                 }
                             }
@@ -652,7 +685,24 @@ parseUrl(PE, function (data) {
                                     }
 
                                     var urlQuery = CURTIME.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
-                                    getStockData(urlQuery, CURARR, year, i, null);
+
+                                    getStockData(urlQuery, CURARR, year, i, function () {
+                                        queueTest = 1;
+                                        for (var i = 1; i <= PREDICTQ; i++) {
+                                            var year = new Date().getFullYear() - i + 1;
+                                            var qt = utilStock.getQuarter(new Date())- i + 1;
+
+                                            if (qt <= 0) {
+                                                // if it's first quarter, then I need to put it to last year
+                                                qt = 4;
+                                                //year = year - 1;
+                                            }
+        
+                                            var urlQuery = PREDICT.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
+
+                                            getStockData(urlQuery, PREDARR, year, "Q" + qt, null);
+                                        }
+                                    }); 
                                 }
                             });
                         }
