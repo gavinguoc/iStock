@@ -550,7 +550,7 @@ function getIndexData(url, urlArr, id, cb) {
                     if (lastDay != "") {
                         curIndex[key] = {};
                         curIndex[key]['target'] = curIndex[lastDay];
-                        curIndex[key]['date'] = lastDay;
+                        curIndex[key]['date'] = lastDay + " close value";
                         curIndex[key]['ratio'] = 100 * curIndex[curKey]['target']['close'] / curIndex[key]['target']['close'];
                         console.log("Identified id#" + INDEXID[i] + " index data back " + hValues[j] + " by " + lastDay + " value " + curIndex[key]['ratio'] + " Cal from close:" + curIndex[key]['target']['close'] + " now close:" + curIndex[curKey]['target']['close']);
                     }
