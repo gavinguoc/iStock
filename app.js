@@ -86,9 +86,9 @@ const CUROUT = [
     'vprofitdesc',
     'debt2asset',
     '28changeratio',
-    '90changeratio',
-    '181changeratio',
-    '363changeratio',
+    '92changeratio',
+    '183changeratio',
+    '365changeratio',
 ];
 const INDEX = "index";
 
@@ -283,6 +283,9 @@ function getStockData(url, urlArr, year, count, cb) {
             }
 
             if (cb == null && queueTest == 1) {
+
+                var fileName = "stock_"+ utilStock.formatDateTime(new Date()) +  ".txt";
+
                 console.log("getStockData queueTest value reach:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
                 var fs = require("fs");
                 var arrf = [];
@@ -318,7 +321,7 @@ function getStockData(url, urlArr, year, count, cb) {
                     }
                 }
 
-                fs.writeFileSync("stock.txt", arrk.join(",") + "\n");
+                fs.writeFileSync(fileName, arrk.join(",") + "\n");
 
                 arrf = Object.keys(stock).sort();
                 for (var i = 0; i < arrf.length; i++) {
@@ -352,7 +355,7 @@ function getStockData(url, urlArr, year, count, cb) {
                         }
                     }
 
-                    fs.appendFileSync("stock.txt", outs + "\n");
+                    fs.appendFileSync(fileName, outs + "\n");
                     arrs = Object.keys(stock[arrf[i]][INDEX]).sort();
                     for (var j = 0; j < arrs.length; j++) {
                         var yf = arrs[j];
@@ -366,7 +369,7 @@ function getStockData(url, urlArr, year, count, cb) {
                                     var tValue = 0;
                                     var tValue2 = "";
                                     if (j < 2 && arrk[k].indexOf(CRNAME) != -1) {
-                                        if (stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
+                                        if (stock[arrf[i]]['symbol'] && stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
                                             crValue = sindex[INDEXID[1]][arrk[k]]['ratio'];
                                             tValue2 = " " + sindex[INDEXID[1]][arrk[k]]['date'];
                                         } else {
@@ -407,7 +410,7 @@ function getStockData(url, urlArr, year, count, cb) {
                                     }
                                 }
                             }
-                            fs.appendFileSync("stock.txt", outs + "\n");
+                            fs.appendFileSync(fileName, outs + "\n");
                         }
                     }
 
