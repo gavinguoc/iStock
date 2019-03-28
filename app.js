@@ -607,8 +607,8 @@ function getChangeRatio(url, duration, cb) {
                 }
             }
 
-            var urlCount = Math.ceil($("#ClientPageControl1_hdnTotalCount").val() / $("#ClientPageControl1_hdnPageSize").val());
             if (CHANGERATIO[url]) {
+                var urlCount = Math.ceil($("#ClientPageControl1_hdnTotalCount").val() / $("#ClientPageControl1_hdnPageSize").val());
                 for (var k = 2; k <= urlCount; k++) {
                     getChangeRatio(url.replace(/(\d+)\.htm/, "$1" + "_2_1_" + k + ".html"), duration, cb);
                 }
