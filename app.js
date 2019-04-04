@@ -3,6 +3,7 @@ var cheerio = require("cheerio");
 var utilStock = require("./utilStock");
 var iconv = require('iconv-lite');
 var request = require('request');
+var deepcopy = require('deepcopy');
 
 var stock = {};
 var sindex = {};
@@ -13,7 +14,9 @@ var levels = {};
 var level = {};
 var cbFunc = null;
 var firstyear = 0;
+var overwritten = true;
 
+const NETPSTR = "netprofitdate";
 const STOCKNO = 5000;
 const STOCKYEAR = 5;
 const PREDICTQ = 2;
@@ -166,9 +169,7 @@ function getStockData(url, urlArr, year, count, cb) {
     }
 
     queueTest++;
-    console.log("url:" + url);
-    console.log("year:" + year + " count:" + count);
-    console.log("getStockData queueTest increase:" + queueTest + " urlArr:" 
+    console.log("url:" + url + " by year:" + year + " count:" + count + " at getStockData queueTest increase:" + queueTest + " urlArr:" 
         + ((urlArr == SBARR) ? "SBARR" : 
         ((urlArr == SVARR) ? "SVARR" : 
         ((urlArr == CURARR) ? "CURARR" : 
@@ -185,21 +186,27 @@ function getStockData(url, urlArr, year, count, cb) {
         ((urlArr == CURARR) ? "CURARR" : 
         ((urlArr == PREDARR)? "PREDARR":
         "UNKNOWN")
-        ))));
-        console.log("year:" + year + " count:" + count);
+        ))) + " by year:" + year + " count:" + count);
 
         if (data) {
             //console.log(data);
             var $ = cheerio.load(data);
             var objTr = $("#dataTable tr");
 
-            for (var i = 0; i < objTr.length; i++) {
+            if(String(count).indexOf("Q") != -1){
+                count = count;
+            }
+
+            if((count == 1) && (CURARR == urlArr)){
+                count = count;
+            }
+
+           for (var i = 0; i < objTr.length; i++) {
                 var e = objTr[i];
                 var iStock = {};
                 var iStockCode = "";
                 var objTd = $(e).find("td");
 
-                if (year && count == 1) { firstyear = year; }
                 for (var j = 0; j < objTd.length; j++) {
                     var y = objTd[j];
 
@@ -208,19 +215,21 @@ function getStockData(url, urlArr, year, count, cb) {
                     switch (j) {
                         case 0:
                             iStockCode = $(y).text();
-                            if (iStockCode == "000001" && year) {
+                            if (isNaN(iStockCode)) { continue; }
+
+                            if (iStockCode == "000004" && year && (count == 1 || count == 2) && (CURARR == urlArr)) {
                                 iStockCode = iStockCode;
                             }
-                            if (isNaN(iStockCode)) { continue; }
 
                             if (year && String(count).indexOf("Q") == -1 ) {
                                 if (stock.hasOwnProperty(iStockCode) && stock[iStockCode].hasOwnProperty(INDEX) && stock[iStockCode][INDEX].hasOwnProperty(year)) {
-                                    iStock = stock[iStockCode][INDEX][year];
+                                    iStock = deepcopy(stock[iStockCode][INDEX][year]);
                                 }
                                 else {
                                     if (!stock.hasOwnProperty(iStockCode)) stock[iStockCode] = {};
                                     if (!stock[iStockCode].hasOwnProperty(INDEX)) stock[iStockCode][INDEX] = {};
-                                    iStock = stock[iStockCode][INDEX][year] = {};
+                                    iStock = {};
+                                    stock[iStockCode][INDEX][year] = {};
                                     iStock[urlArr[j]] = iStockCode;
                                 }
                             }
@@ -247,14 +256,18 @@ function getStockData(url, urlArr, year, count, cb) {
                                         iStock[urlArr[j]] = year;
                                     }
                                 }
-                                if (year == null || ((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1)) { // 
-                                    if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "" && !(((SBARR == urlArr || CURARR == urlArr) && count == 1) || (year == firstyear && count != 1))) {// 
+
+                                if (year == null || (count <=2 && !(stock[iStockCode][urlArr[j]] && !overwritten && count == 1))) { // 
+                                    if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "" && year == null) {// 
                                         stock[iStockCode][urlArr[j]] = stock[iStockCode][urlArr[j]] + "-" + $(y).text();
                                     }
                                     else {
-                                        if(!stock[iStockCode][urlArr[j]] || (stock[iStockCode][urlArr[j]] && (year == firstyear && count != 1))) {
+                                        if(!(stock[iStockCode][urlArr[j]] && !overwritten && count == 1)) {
                                             stock[iStockCode][urlArr[j]] = $(y).text();
-                                            if(urlArr[j].indexOf('date') != -1 && year){
+                                            // if(stock[iStockCode][INDEX][year] && (year == firstyear && count != 1)){
+                                            //     stock[iStockCode][INDEX][year][urlArr[j]] = $(y).text();
+                                            // }
+                                            if(urlArr[j] == NETPSTR && year){
                                                 // var y = new Date().getFullYear();
                                                 // if (utilStock.getQuarter(new Date()) == 1) {
                                                 //     y = y - 1;
@@ -274,40 +287,65 @@ function getStockData(url, urlArr, year, count, cb) {
                             break;
                     }
                     //console.log($(y).text());
-                    if ((year && String(count).indexOf("Q") == -1) && j == urlArr.length && !isNaN(iStockCode)) {
-                        if(!Object.keys(stock[iStockCode][INDEX][year]).length && ((year == firstyear && count != 1) && Object.keys(stock[iStockCode][INDEX][year]).length)) {
-                            stock[iStockCode][INDEX][year] = iStock;
-                        }
+                }
+
+                if (iStockCode == "000004" && year && (count == 1 || count == 2) && (CURARR == urlArr)) {
+                    iStockCode = iStockCode;
+                }
+
+                if(String(count).indexOf("Q") != -1){
+                    count = count;
+                }
+
+                if (objTd.length && year && String(count).indexOf("Q") == -1 && !isNaN(iStockCode)) {
+                    //if(!stock[iStockCode][INDEX].hasOwnProperty(year) || (stock[iStockCode][INDEX].hasOwnProperty(year) && !Object.keys(stock[iStockCode][INDEX][year]).length)) {
+                    // if(!(stock[iStockCode][INDEX].hasOwnProperty(year) && Object.keys(stock[iStockCode][INDEX][year]).length && year == firstyear && 
+                    //     (stock[iStockCode][INDEX].hasOwnProperty(NETPSTR) && stock[iStockCode][INDEX][year][NETPSTR] == firstyear && String(iStock[NETPSTR]).indexOf("Q") !=-1) 
+                        
+                    //     )) {
+                    if(!(!overwritten && count == 1 && stock[iStockCode][INDEX].hasOwnProperty(year) && 
+                        (stock[iStockCode][INDEX][year].hasOwnProperty(urlArr[urlArr.length-1])) )){
+                        stock[iStockCode][INDEX][year] = deepcopy(iStock);
+                        if (count == 2) { overwritten = false; }
                     }
                 }
+
+            }
+
+            if(!objTr.length) {
+                console.log("getStockData queueTest decrease:" + queueTest + " No data returned!");
             }
 
             if (cb == null && queueTest == 1) {
 
                 var fileName = "stock_"+ utilStock.formatDateTime(new Date()) +  ".txt";
 
-                console.log("getStockData queueTest value reach:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : "UNKNOWN"))));
+                console.log("getStockData queueTest value reach:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : ((urlArr == PREDARR) ? "PREDARR" : "UNKNOWN")))));
                 var fs = require("fs");
                 var arrf = [];
                 var arrs = [];
                 var arrk = [];
 
                 arrf = Object.keys(stock).sort();
-                for (var i = 0; i < arrf.length; i++) {
+                for (var i = 0; i < arrf.length; i++) { // go through two stocks
                     //if (arrf[i] == INDEX) { continue; }
                     arrs = Object.keys(stock[arrf[i]]).sort();
                     for (var j = 0; j < arrs.length; j++) {
                         levelf[arrs[j]] = 1;
                         level[arrs[j]] = 1;// && Object.keys(stock[arrf[i]][arrs[j]]).count > 0
-                        if (typeof stock[arrf[i]][arrs[j]] == 'object' && Object.keys(stock[arrf[i]][arrs[j]]).length && stock[arrf[i]][arrs[j]] != "") {
-                            var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
-                            arrk = Object.keys(stock[arrf[i]][arrs[j]][t[0]]).sort();
-                            for (var k = 0; k < arrk.length; k++) {
-                                levels[arrk[k]] = 1;
-                                level[arrk[k]] = 1;
+                        var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
+                        if (typeof(stock[arrf[i]][arrs[j]]) == 'object' && t.length) {
+                            //var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
+                            for(var m = 0; m < t.length; m++){
+                                arrk = Object.keys(stock[arrf[i]][arrs[j]][t[m]]).sort();
+                                for (var k = 0; k < arrk.length; k++) {
+                                    levels[arrk[k]] = 1;
+                                    level[arrk[k]] = 1;
+                                }
                             }
                         }
                     }
+                    
                 }
 
                 //console.log(levelf + "#####" + levels);
@@ -365,7 +403,7 @@ function getStockData(url, urlArr, year, count, cb) {
                             //arrk = CUROUT.sort();
                             for (var k = 0; k < arrk.length; k++) {
                                 //if (CUROUT.indexOf(arrk[k]) == -1 ) { continue; }
-                                if (Object.keys(levelf).indexOf(arrk[k]) != -1 && Object.keys(levels).indexOf(arrk[k]) == -1) {
+                                if (Object.keys(levels).indexOf(arrk[k]) == -1) {
                                     var tValue = 0;
                                     var tValue2 = "";
                                     if (j < 2 && arrk[k].indexOf(CRNAME) != -1) {
@@ -419,7 +457,9 @@ function getStockData(url, urlArr, year, count, cb) {
             }
             if (cb && queueTest == 1) cb();
         }
-
+        else{
+            console.log("getStockData queueTest decrease:" + queueTest + " No data returned!");
+        }
     });
 }
 
@@ -433,7 +473,7 @@ function getIndex(cb) {
         relatePower[INDEXID[i]] = {};
         var fixMonth = utilStock.getQuarter(new Date()) * 3;
 
-        for (var j = 0; j < STOCKYEAR; j++) {
+        for (var j = 0; j < STOCKYEAR + 1; j++) {
             var date = new Date(new Date().getFullYear(), fixMonth - j * 3 - 1, 1);
             var year = date.getFullYear();
             var qt = utilStock.getQuarter(date);
@@ -448,9 +488,7 @@ function getIndexData(url, urlArr, id, cb) {
 
     queueTest++;
 
-    console.log("url:" + url);
-    console.log("index:" + id);
-    console.log("getIndexData queueTest increase:" + queueTest);
+    console.log("url:" + url + " index:" + id + " getIndexData queueTest increase:" + queueTest);
     parseUrl(url, function (data) {
 
         queueTest--;
@@ -487,6 +525,9 @@ function getIndexData(url, urlArr, id, cb) {
                     }
                 }
             }
+        }
+        else{
+            console.log("getIndexData queueTest decrease:" + queueTest + " No data returned!");
         }
 
         if (queueTest == 1 && cb) {
@@ -526,7 +567,7 @@ function getIndexData(url, urlArr, id, cb) {
                         lastDay = utilStock.lastWorkingDay(lastDay, 1);
                         cntDay++;
 
-                        if (cntDay > Object.keys(curIndex).length + 10) {
+                        if (cntDay > Object.keys(curIndex).length + 30) {
                             lastDay = "";
                             break;
                         }
@@ -568,8 +609,7 @@ function getIndexData(url, urlArr, id, cb) {
 function getChangeRatio(url, duration, cb) {
 
     queueTest++;
-    console.log("getChangeRatio url:" + url + " duration:" + duration);
-    console.log("getChangeRatio queueTest increase:" + queueTest);
+    console.log("getChangeRatio url:" + url + " duration:" + duration + " queueTest increase:" + queueTest);
 
     parseUrl(url, function (data) {
 
@@ -582,6 +622,11 @@ function getChangeRatio(url, duration, cb) {
             var urlBase;
             var $ = cheerio.load(data);
             var objTr = $("#table1 tbody tr");
+
+            if(!objTr.length){
+                console.log("getChangeRatio queueTest decrease:" + queueTest + " data returned but invalid!");
+            }
+
             for (var i = 0; i < objTr.length; i++) {
                 var e = objTr[i];
                 var objTd = $(e).find("td");
@@ -614,6 +659,9 @@ function getChangeRatio(url, duration, cb) {
                 }
             }
         }
+        else{
+            console.log("getChangeRatio queueTest decrease:" + queueTest + " No data returned!");
+        }
 
         if (queueTest == 1) {
             if (cb) cb();
@@ -622,6 +670,8 @@ function getChangeRatio(url, duration, cb) {
 }
 
 parseUrl(PE, function (data) {
+
+    console.log(utilStock.formatDateTime(new Date()));
 
     if (data) {
         // console.log(data);
@@ -660,13 +710,15 @@ parseUrl(PE, function (data) {
                                 else {
                                     qt = qt - 1;
                                 }
+                                firstyear = year;
+                                overwritten = true;
                             }
                             else {
                                 qt = 4;
                             }
 
                             var urlQuery = STOCKDEBT_ALL.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
-
+                            
                             getStockData(urlQuery, SBARR, year, i, function () {
                                 queueTest = 1;
                                 for (var i = 1; i <= STOCKYEAR; i++) {
@@ -682,6 +734,8 @@ parseUrl(PE, function (data) {
                                         else {
                                             qt = qt - 1;
                                         }
+                                        firstyear = year;
+                                        overwritten = true;
                                     }
                                     else {
                                         qt = 4;
@@ -691,6 +745,7 @@ parseUrl(PE, function (data) {
 
                                     getStockData(urlQuery, CURARR, year, i, function () {
                                         queueTest = 1;
+                                        firstyear = 0;
                                         for (var i = 1; i <= PREDICTQ; i++) {
                                             var year = new Date().getFullYear() - i + 1;
                                             var qt = utilStock.getQuarter(new Date())- i + 1;
