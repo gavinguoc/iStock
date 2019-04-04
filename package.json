@@ -9,6 +9,7 @@
   "dependencies": {
     "cheerio": "0.22.0",
     "iconv-lite": "0.4.24",
-    "request": "2.88.0"
+    "request": "2.88.0",
+    "deepcopy": "~2.0.0"
   }
 }
