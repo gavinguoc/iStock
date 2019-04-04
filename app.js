@@ -13,8 +13,9 @@ var levelf = {};
 var levels = {};
 var level = {};
 var cbFunc = null;
-var firstyear = 0;
+// var firstyear = 0;
 var overwritten = true;
+var repaid = false;
 
 const NETPSTR = "netprofitdate";
 const STOCKNO = 5000;
@@ -254,10 +255,16 @@ function getStockData(url, urlArr, year, count, cb) {
                                     iStock[urlArr[j]] = $(y).text();
                                     if(urlArr[j].indexOf('date') != -1){
                                         iStock[urlArr[j]] = year;
+                                        if(url.indexOf("quarter=4") == -1){
+                                            iStock[urlArr[j]] = year + "Q" + url.substr(url.indexOf("quarter=") + "quarter=".length, 1);
+
+                                        }
                                     }
                                 }
-
-                                if (year == null || (count <=2 && !(stock[iStockCode][urlArr[j]] && !overwritten && count == 1))) { // 
+                                // Manage the Stock main data is up-to-date on the year
+                                if (year == null || (count <=2 && ((!stock[iStockCode].hasOwnProperty(NETPSTR) 
+                                                        || (stock[iStockCode].hasOwnProperty(NETPSTR) && year >= stock[iStockCode][NETPSTR])) 
+                                                     && !(stock[iStockCode][urlArr[j]] && !overwritten && count == 1)))) { // 
                                     if (stock[iStockCode][urlArr[j]] && stock[iStockCode][urlArr[j]] != "" && year == null) {// 
                                         stock[iStockCode][urlArr[j]] = stock[iStockCode][urlArr[j]] + "-" + $(y).text();
                                     }
@@ -273,10 +280,8 @@ function getStockData(url, urlArr, year, count, cb) {
                                                 //     y = y - 1;
                                                 // }
                                                 stock[iStockCode][urlArr[j]] = year;
-                                                iStock[urlArr[j]] = year;
-                                                if(url.indexOf("quarter=3") != -1){
-                                                    stock[iStockCode][urlArr[j]] = year + "Q3";
-                                                    iStock[urlArr[j]] = year + "Q3";
+                                                if(url.indexOf("quarter=4") == -1){
+                                                    stock[iStockCode][urlArr[j]] = year + "Q" + url.substr(url.indexOf("quarter=") + "quarter=".length, 1);
                                                 }
                                             }
                                         }
@@ -296,7 +301,7 @@ function getStockData(url, urlArr, year, count, cb) {
                 if(String(count).indexOf("Q") != -1){
                     count = count;
                 }
-
+                /// Manage the sub data of the year is good
                 if (objTd.length && year && String(count).indexOf("Q") == -1 && !isNaN(iStockCode)) {
                     //if(!stock[iStockCode][INDEX].hasOwnProperty(year) || (stock[iStockCode][INDEX].hasOwnProperty(year) && !Object.keys(stock[iStockCode][INDEX][year]).length)) {
                     // if(!(stock[iStockCode][INDEX].hasOwnProperty(year) && Object.keys(stock[iStockCode][INDEX][year]).length && year == firstyear && 
@@ -697,12 +702,29 @@ parseUrl(PE, function (data) {
                     queueTest = 1;
                     getStockData(STOCKVERTICAL, SVARR, null, null, function () {
                         queueTest = 1;
+                        repaid = false;
                         for (var i = 1; i <= STOCKYEAR; i++) {
                             var year = new Date().getFullYear() - i + 1;
                             var qt = utilStock.getQuarter(new Date());
 
+                            if(qt != 2) {repaid = true;}
+                            
+                            // Q1	
+                            // 通常Q4没出，Q3出了	
+                            // 先Q3，再Q4	
+                                
+                                
+                            // Q2	
+                            // 通常Q1没出，Q4出了	
+                            // 但是目前看也有Q4没出的	
+                            // 还得考虑Q3	
+                            // 先Q3，再Q4，再Q1	
+                                
+                            // Q3	
+                            // 先Q1，在Q2	
+
                             if (i == 1) {
-                                if (qt == 1) {
+                                if (qt == 1 || qt == 2) {
                                     // if it's first quarter, then I need to put it to last year
                                     qt = 3;
                                     year = year - 1;
@@ -710,7 +732,14 @@ parseUrl(PE, function (data) {
                                 else {
                                     qt = qt - 1;
                                 }
-                                firstyear = year;
+                                //firstyear = year;
+                                overwritten = true;
+                            }
+                            else if(i == 3 && !repaid){
+                                i = 2;
+                                qt = 1;
+                                year = new Date().getFullYear();
+                                repaid = true;
                                 overwritten = true;
                             }
                             else {
@@ -721,12 +750,29 @@ parseUrl(PE, function (data) {
                             
                             getStockData(urlQuery, SBARR, year, i, function () {
                                 queueTest = 1;
+                                repaid = false;
                                 for (var i = 1; i <= STOCKYEAR; i++) {
                                     var year = new Date().getFullYear() - i + 1;
                                     var qt = utilStock.getQuarter(new Date());
 
+                                    if(qt != 2) {repaid = true;}
+
+                                    // Q1	
+                                    // 通常Q4没出，Q3出了	
+                                    // 先Q3，再Q4	
+                                        
+                                        
+                                    // Q2	
+                                    // 通常Q1没出，Q4出了	
+                                    // 但是目前看也有Q4没出的	
+                                    // 还得考虑Q3	
+                                    // 先Q3，再Q4，再Q1	
+                                        
+                                    // Q3	
+                                    // 先Q1，在Q2	
+
                                     if (i == 1) {
-                                        if (qt == 1) {
+                                        if (qt == 1 || qt == 2) {
                                             // if it's first quarter, then I need to put it to last year
                                             qt = 3;
                                             year = year - 1;
@@ -734,7 +780,14 @@ parseUrl(PE, function (data) {
                                         else {
                                             qt = qt - 1;
                                         }
-                                        firstyear = year;
+                                        // firstyear = year;
+                                        overwritten = true;
+                                    }
+                                    else if(i == 3 && !repaid){
+                                        i = 2;
+                                        qt = 1;
+                                        year = new Date().getFullYear();
+                                        repaid = true;
                                         overwritten = true;
                                     }
                                     else {
@@ -745,7 +798,7 @@ parseUrl(PE, function (data) {
 
                                     getStockData(urlQuery, CURARR, year, i, function () {
                                         queueTest = 1;
-                                        firstyear = 0;
+                                        // firstyear = 0;
                                         for (var i = 1; i <= PREDICTQ; i++) {
                                             var year = new Date().getFullYear() - i + 1;
                                             var qt = utilStock.getQuarter(new Date())- i + 1;
