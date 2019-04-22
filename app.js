@@ -28,6 +28,7 @@ const STOCKVERTICAL = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAna
 //const STOCKDEBT = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?num=" + STOCKNO;
 const STOCKDEBT_ALL = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/debtpaying/index.phtml?s_i=&s_a=&s_c=&reportdate=2018&quarter=2&num=" + STOCKNO;
 const PREDICT = "http://vip.stock.finance.sina.com.cn/q/go.php/vFinanceAnalyze/kind/performance/index.phtml?s_i=&s_a=&s_c=&s_type=&reportdate=2018&quarter=2&num=" + STOCKNO;
+const CODE = "600890";
 
 const SVARR = ['code',
     'name',
@@ -136,7 +137,8 @@ function parseUrl(url, callback) {
     var data = "";
     request({
         encoding: null,
-        url: url
+        url: url,
+        timeout: 3000000
     }, function (error, res, body) {
         if (!error && res.statusCode == 200) {
             data = iconv.decode(body, 'gb2312').toString();
@@ -218,7 +220,7 @@ function getStockData(url, urlArr, year, count, cb) {
                             iStockCode = $(y).text();
                             if (isNaN(iStockCode)) { continue; }
 
-                            if (iStockCode == "000004" && year && (count == 1 || count == 2) && (CURARR == urlArr)) {
+                            if (iStockCode == CODE) { // && year && (count == 1 || count == 2) && (CURARR == urlArr)
                                 iStockCode = iStockCode;
                             }
 
@@ -294,7 +296,7 @@ function getStockData(url, urlArr, year, count, cb) {
                     //console.log($(y).text());
                 }
 
-                if (iStockCode == "000004" && year && (count == 1 || count == 2) && (CURARR == urlArr)) {
+                if (iStockCode == CODE ) { //&& year && (count == 1 || count == 2) && (CURARR == urlArr)
                     iStockCode = iStockCode;
                 }
 
@@ -318,153 +320,158 @@ function getStockData(url, urlArr, year, count, cb) {
             }
 
             if(!objTr.length) {
-                console.log("getStockData queueTest decrease:" + queueTest + " No data returned!");
+                console.log("getStockData url:" + url + " queueTest decrease:" + queueTest + " No valid data returned! data:" + (data?data.substr(1,10):"null"));
+            }
+        }
+        else{
+            console.log("getStockData url:" + url + " queueTest decrease:" + queueTest + " No data returned! data:" + (data?data.substr(1,10):"null"));
+        }
+
+        if (cb == null && queueTest == 1) {
+
+            var fileName = "stock_"+ utilStock.formatDateTime(new Date()) +  ".txt";
+
+            console.log("getStockData queueTest value reach:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : ((urlArr == PREDARR) ? "PREDARR" : "UNKNOWN")))));
+            var fs = require("fs");
+            var arrf = [];
+            var arrs = [];
+            var arrk = [];
+
+            arrf = Object.keys(stock).sort();
+            for (var i = 0; i < arrf.length; i++) { // go through two stocks
+                //if (arrf[i] == INDEX) { continue; }
+                arrs = Object.keys(stock[arrf[i]]).sort();
+                if (arrf[i] == CODE ) { //&& year && (count == 1 || count == 2) && (CURARR == urlArr)
+                    arrf[i] = arrf[i];
+                }
+                
+                for (var j = 0; j < arrs.length; j++) {
+                    levelf[arrs[j]] = 1;
+                    level[arrs[j]] = 1;// && Object.keys(stock[arrf[i]][arrs[j]]).count > 0
+                    var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
+                    if (typeof(stock[arrf[i]][arrs[j]]) == 'object' && t.length) {
+                        //var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
+                        for(var m = 0; m < t.length; m++){
+                            arrk = Object.keys(stock[arrf[i]][arrs[j]][t[m]]).sort();
+                            for (var k = 0; k < arrk.length; k++) {
+                                levels[arrk[k]] = 1;
+                                level[arrk[k]] = 1;
+                            }
+                        }
+                    }
+                }
+                
             }
 
-            if (cb == null && queueTest == 1) {
+            //console.log(levelf + "#####" + levels);
+            arrk = CUROUT.sort();
+            //arrf.splice(arrf.indexOf(INDEX), 1);
+            var keysLevelf =  Object.keys(levelf).sort();
 
-                var fileName = "stock_"+ utilStock.formatDateTime(new Date()) +  ".txt";
+            for(var j = 0; j< keysLevelf.length; j++){
+                if(keysLevelf[j].indexOf("pQ") != -1 && keysLevelf[j].indexOf("eps") == -1&& keysLevelf[j].indexOf("detail") == -1){
+                    arrk[arrk.length] = keysLevelf[j];
+                }
+            }
 
-                console.log("getStockData queueTest value reach:" + queueTest + " urlArr:" + ((urlArr == SBARR) ? "SBARR" : ((urlArr == SVARR) ? "SVARR" : ((urlArr == CURARR) ? "CURARR" : ((urlArr == PREDARR) ? "PREDARR" : "UNKNOWN")))));
-                var fs = require("fs");
-                var arrf = [];
-                var arrs = [];
-                var arrk = [];
+            fs.writeFileSync(fileName, arrk.join(",") + "\n");
 
-                arrf = Object.keys(stock).sort();
-                for (var i = 0; i < arrf.length; i++) { // go through two stocks
-                    //if (arrf[i] == INDEX) { continue; }
-                    arrs = Object.keys(stock[arrf[i]]).sort();
-                    for (var j = 0; j < arrs.length; j++) {
-                        levelf[arrs[j]] = 1;
-                        level[arrs[j]] = 1;// && Object.keys(stock[arrf[i]][arrs[j]]).count > 0
-                        var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
-                        if (typeof(stock[arrf[i]][arrs[j]]) == 'object' && t.length) {
-                            //var t = Object.keys(stock[arrf[i]][arrs[j]]).sort();
-                            for(var m = 0; m < t.length; m++){
-                                arrk = Object.keys(stock[arrf[i]][arrs[j]][t[m]]).sort();
-                                for (var k = 0; k < arrk.length; k++) {
-                                    levels[arrk[k]] = 1;
-                                    level[arrk[k]] = 1;
-                                }
-                            }
+            arrf = Object.keys(stock).sort();
+            for (var i = 0; i < arrf.length; i++) {
+
+                if (arrf[i] == "") { continue; }
+
+                var outs = "";
+                var y = new Date().getFullYear();
+                if (utilStock.getQuarter(new Date()) == 1) {
+                    y = y - 1;
+                }                   
+
+                //arrs = CUROUT.sort();
+                console.log("Processing: " + arrf[i]);
+                
+                var str = "";
+                for (var j = 0; j < arrk.length; j++) {
+                    //if (CUROUT.indexOf(arrs[j]) == -1) { continue; }
+                    str = stock[arrf[i]][arrk[j]];
+                    if(str){str = String(str).replace(/(\r\n|\n|\r)/gm,"-");}
+                    if (arrf[i] == CODE) {
+                        arrf[i] = arrf[i];
+                    }
+                    if (Object.keys(levelf).indexOf(arrk[j]) != -1) {
+                        if (outs == "") {
+                            outs = str?str:" ";// + ((arrk[j].indexOf('date') > -1) ? ("-" + y) : "");
+                        }
+                        else {
+                            outs = outs + "," + (str?str:"");// + ((arrk[j].indexOf('date') > -1) ? ("-" + y) : "");
                         }
                     }
-                    
                 }
 
-                //console.log(levelf + "#####" + levels);
-                arrk = CUROUT.sort();
-                //arrf.splice(arrf.indexOf(INDEX), 1);
-                var keysLevelf =  Object.keys(levelf).sort();
-
-                for(var j = 0; j< keysLevelf.length; j++){
-                    if(keysLevelf[j].indexOf("pQ") != -1 && keysLevelf[j].indexOf("eps") == -1&& keysLevelf[j].indexOf("detail") == -1){
-                        arrk[arrk.length] = keysLevelf[j];
-                    }
-                }
-
-                fs.writeFileSync(fileName, arrk.join(",") + "\n");
-
-                arrf = Object.keys(stock).sort();
-                for (var i = 0; i < arrf.length; i++) {
-
-                    if (arrf[i] == "") { continue; }
-
-                    var outs = "";
-                    var y = new Date().getFullYear();
-                    if (utilStock.getQuarter(new Date()) == 1) {
-                        y = y - 1;
-                    }                   
-
-                    //arrs = CUROUT.sort();
-                    console.log("Processing: " + arrf[i]);
-                    
-                    var str = "";
-                    for (var j = 0; j < arrk.length; j++) {
-                        //if (CUROUT.indexOf(arrs[j]) == -1) { continue; }
-                        str = stock[arrf[i]][arrk[j]];
-                        if(str){str = String(str).replace(/(\r\n|\n|\r)/gm,"-");}
-                        if (arrf[i] == "002680") {
-                            arrf[i] = arrf[i];
-                        }
-                        if (Object.keys(levelf).indexOf(arrk[j]) != -1) {
-                            if (outs == "") {
-                                outs = str?str:" ";// + ((arrk[j].indexOf('date') > -1) ? ("-" + y) : "");
-                            }
-                            else {
-                                outs = outs + "," + (str?str:"");// + ((arrk[j].indexOf('date') > -1) ? ("-" + y) : "");
-                            }
-                        }
-                    }
-
-                    fs.appendFileSync(fileName, outs + "\n");
-                    arrs = Object.keys(stock[arrf[i]][INDEX]).sort();
-                    for (var j = 0; j < arrs.length; j++) {
-                        var yf = arrs[j];
-                        var crValue = 0;
-                        outs = "-x-";
-                        if (1) { //yf != y) { // Go and Print OUT this year anyway
-                            //arrk = CUROUT.sort();
-                            for (var k = 0; k < arrk.length; k++) {
-                                //if (CUROUT.indexOf(arrk[k]) == -1 ) { continue; }
-                                if (Object.keys(levels).indexOf(arrk[k]) == -1) {
-                                    var tValue = 0;
-                                    var tValue2 = "";
-                                    if (j < 2 && arrk[k].indexOf(CRNAME) != -1) {
-                                        if (stock[arrf[i]]['symbol'] && stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
-                                            crValue = sindex[INDEXID[1]][arrk[k]]['ratio'];
-                                            tValue2 = " " + sindex[INDEXID[1]][arrk[k]]['date'];
-                                        } else {
-                                            crValue = sindex[INDEXID[0]][arrk[k]]['ratio'];
-                                            tValue2 = " " + sindex[INDEXID[0]][arrk[k]]['date'];
-                                        }
-                                        tValue = crValue.toFixed(2) + "%";
-                                        // if (k == 0) { tValue = tValue + tValue2; }
-                                        tValue = tValue + tValue2;
-                                        if (j == 0) {
-                                            if (outs == "-x-") {
-                                                outs = tValue;
-                                            } else {
-                                                outs = outs + "," + tValue;
-                                            }
-                                        } else if (j == 1) {
-                                            tValue = 100 * ((parseFloat(stock[arrf[i]][arrk[k]]) + 100) - crValue) / crValue;
-                                            tValue = tValue.toFixed(2);
-                                            tValue = tValue + "%";
-                                            if (outs == "-x-") {
-                                                outs = tValue;
-                                            } else {
-                                                outs = outs + "," + tValue;
-                                            }
-                                        }
+                fs.appendFileSync(fileName, outs + "\n");
+                arrs = Object.keys(stock[arrf[i]][INDEX]).sort();
+                for (var j = 0; j < arrs.length; j++) {
+                    var yf = arrs[j];
+                    var crValue = 0;
+                    outs = "-x-";
+                    if (1) { //yf != y) { // Go and Print OUT this year anyway
+                        //arrk = CUROUT.sort();
+                        for (var k = 0; k < arrk.length; k++) {
+                            //if (CUROUT.indexOf(arrk[k]) == -1 ) { continue; }
+                            if (Object.keys(levels).indexOf(arrk[k]) == -1) {
+                                var tValue = 0;
+                                var tValue2 = "";
+                                if (j < 2 && arrk[k].indexOf(CRNAME) != -1) {
+                                    if (stock[arrf[i]]['symbol'] && stock[arrf[i]]['symbol'].indexOf('sz') != -1) {
+                                        crValue = sindex[INDEXID[1]][arrk[k]]['ratio'];
+                                        tValue2 = " " + sindex[INDEXID[1]][arrk[k]]['date'];
                                     } else {
+                                        crValue = sindex[INDEXID[0]][arrk[k]]['ratio'];
+                                        tValue2 = " " + sindex[INDEXID[0]][arrk[k]]['date'];
+                                    }
+                                    tValue = crValue.toFixed(2) + "%";
+                                    // if (k == 0) { tValue = tValue + tValue2; }
+                                    tValue = tValue + tValue2;
+                                    if (j == 0) {
                                         if (outs == "-x-") {
-                                            outs = "";
+                                            outs = tValue;
                                         } else {
-                                            outs = outs + "," + "";
+                                            outs = outs + "," + tValue;
+                                        }
+                                    } else if (j == 1) {
+                                        tValue = 100 * ((parseFloat(stock[arrf[i]][arrk[k]]) + 100) - crValue) / crValue;
+                                        tValue = tValue.toFixed(2);
+                                        tValue = tValue + "%";
+                                        if (outs == "-x-") {
+                                            outs = tValue;
+                                        } else {
+                                            outs = outs + "," + tValue;
                                         }
                                     }
                                 } else {
                                     if (outs == "-x-") {
-                                        outs = stock[arrf[i]][INDEX][yf][arrk[k]];// + ((arrk[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                        outs = "";
                                     } else {
-                                        outs = outs + "," + stock[arrf[i]][INDEX][yf][arrk[k]];// + ((arrk[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                        outs = outs + "," + "";
                                     }
                                 }
+                            } else {
+                                if (outs == "-x-") {
+                                    outs = stock[arrf[i]][INDEX][yf][arrk[k]];// + ((arrk[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                } else {
+                                    outs = outs + "," + stock[arrf[i]][INDEX][yf][arrk[k]];// + ((arrk[k].indexOf('date') > -1) ? ("-" + yf) : "");
+                                }
                             }
-                            fs.appendFileSync(fileName, outs + "\n");
                         }
+                        fs.appendFileSync(fileName, outs + "\n");
                     }
-
                 }
 
             }
-            if (cb && queueTest == 1) cb();
+
         }
-        else{
-            console.log("getStockData queueTest decrease:" + queueTest + " No data returned!");
-        }
+        if (cb && queueTest == 1) cb();
+        
     });
 }
 
@@ -532,7 +539,7 @@ function getIndexData(url, urlArr, id, cb) {
             }
         }
         else{
-            console.log("getIndexData queueTest decrease:" + queueTest + " No data returned!");
+            console.log("getIndexData url:" + url + " queueTest decrease:" + queueTest + " No data returned! data:" + (data?data.substr(1,10):"null"));
         }
 
         if (queueTest == 1 && cb) {
@@ -629,7 +636,7 @@ function getChangeRatio(url, duration, cb) {
             var objTr = $("#table1 tbody tr");
 
             if(!objTr.length){
-                console.log("getChangeRatio queueTest decrease:" + queueTest + " data returned but invalid!");
+                console.log("getChangeRatio url:" + url + " queueTest decrease:" + queueTest + " data returned but invalid! data:" + (data?data.substr(1,10):"null"));
             }
 
             for (var i = 0; i < objTr.length; i++) {
@@ -648,6 +655,9 @@ function getChangeRatio(url, duration, cb) {
                             iStockCode = $(y).text();
                             if (iStockCode == "" || isNaN(iStockCode) || iStockCode.substring(0, 1) == '2' || iStockCode.substring(0, 1) == '9') { continue; }
                             if (!stock.hasOwnProperty(iStockCode)) stock[iStockCode] = {};
+                            if(iStockCode == CODE){
+                                iStockCode = iStockCode;
+                            }
                             break;
 
                         default:
@@ -665,7 +675,7 @@ function getChangeRatio(url, duration, cb) {
             }
         }
         else{
-            console.log("getChangeRatio queueTest decrease:" + queueTest + " No data returned!");
+            console.log("getChangeRatio url:" + url + " duration:" + duration + " queueTest decrease:" + queueTest + " No data returned! data:" + (data?data.substr(1,10):"null"));
         }
 
         if (queueTest == 1) {
@@ -688,6 +698,9 @@ parseUrl(PE, function (data) {
         for (i = 0; i < iStock.length; i++) {
             iStock[i][INDEX] = {};
             stock[iStock[i].code] = iStock[i];
+            if(iStock[i].code == CODE){
+                iStock[i].code  = iStock[i].code
+            }
         }
         levelf = iStock[0];
 
@@ -799,14 +812,15 @@ parseUrl(PE, function (data) {
                                     getStockData(urlQuery, CURARR, year, i, function () {
                                         queueTest = 1;
                                         // firstyear = 0;
+                                        // backtrack two quarters excluding the current one
                                         for (var i = 1; i <= PREDICTQ; i++) {
-                                            var year = new Date().getFullYear() - i + 1;
-                                            var qt = utilStock.getQuarter(new Date())- i + 1;
+                                            var year = new Date().getFullYear();
+                                            var qt = utilStock.getQuarter(new Date())- i;
 
                                             if (qt <= 0) {
                                                 // if it's first quarter, then I need to put it to last year
                                                 qt = 4;
-                                                //year = year - 1;
+                                                year = year - 1;
                                             }
         
                                             var urlQuery = PREDICT.replace("reportdate=2018&quarter=2", "reportdate=" + year + "&quarter=" + qt);
